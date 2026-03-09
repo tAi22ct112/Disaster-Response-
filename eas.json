@@ -1,0 +1,26 @@
+{
+  "cli": {
+    "version": ">= 7.8.0",
+    "appVersionSource": "remote"
+  },
+  "build": {
+    "preview": {
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk",
+        "credentialsSource": "local"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "http://192.168.100.63:4000"
+      }
+    },
+    "production": {
+      "android": {
+        "buildType": "app-bundle"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://api.your-domain.com"
+      }
+    }
+  }
+}
