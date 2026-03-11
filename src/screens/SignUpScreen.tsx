@@ -17,6 +17,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   const onPhoneChange = (text: string) => {
     const digitsOnly = text.replace(/\D/g, '').slice(0, 15);
@@ -24,49 +25,65 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
   };
 
   const onSubmit = async () => {
-    if (!fullName.trim() || !phone.trim() || !password) {
-      Alert.alert('Thieu thong tin', 'Vui long nhap day du ho ten, so dien thoai va mat khau.');
+    const normalizedFullName = fullName.trim();
+    const normalizedPhone = phone.trim();
+    const normalizedEmail = email.trim();
+
+    if (!normalizedFullName || !normalizedPhone || !password) {
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập đầy đủ họ tên, số điện thoại và mật khẩu.');
+      return;
+    }
+    if (normalizedPhone.length < 8 || normalizedPhone.length > 15) {
+      Alert.alert('Số điện thoại không hợp lệ', 'Số điện thoại phải từ 8 đến 15 chữ số.');
+      return;
+    }
+    if (password.length < 8) {
+      Alert.alert('Mật khẩu quá ngắn', 'Mật khẩu phải có ít nhất 8 ký tự.');
+      return;
+    }
+    if (normalizedEmail && !emailRegex.test(normalizedEmail)) {
+      Alert.alert('Email không hợp lệ', 'Vui lòng nhập đúng định dạng email.');
       return;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Mat khau khong khop', 'Vui long nhap lai mat khau xac nhan.');
+      Alert.alert('Mật khẩu không khớp', 'Vui lòng nhập lại mật khẩu xác nhận.');
       return;
     }
 
     try {
       setIsSubmitting(true);
       const result = await signUp({
-        fullName: fullName.trim(),
-        phone: phone.trim(),
-        email: email.trim() || undefined,
+        fullName: normalizedFullName,
+        phone: normalizedPhone,
+        email: normalizedEmail || undefined,
         password
       });
 
       if (result.otpDebugCode) {
-        Alert.alert('OTP (dev mode)', `Ma OTP: ${result.otpDebugCode}`);
+        Alert.alert('OTP (chế độ dev)', `Mã OTP: ${result.otpDebugCode}`);
       }
 
       navigation.navigate('Otp', {
-        phone: phone.trim(),
+        phone: normalizedPhone,
         purpose: result.otpPurpose ?? 'SIGNUP'
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Dang ky that bai';
-      Alert.alert('Loi dang ky', message);
+      const message = error instanceof Error ? error.message : 'Đăng ký thất bại.';
+      Alert.alert('Lỗi đăng ký', message);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientEnd]} style={styles.container}>
-      <Text style={styles.title}>Sign-up</Text>
-      <Text style={styles.subtitle}>Create account to use disaster rescue features.</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.container}>
+      <Text style={styles.title}>Đăng ký</Text>
+      <Text style={styles.subtitle}>Tạo tài khoản để sử dụng các tính năng cứu hộ thiên tai.</Text>
 
-      <TextInput style={styles.input} placeholder="Full Name" placeholderTextColor="#aaa" value={fullName} onChangeText={setFullName} />
+      <TextInput style={styles.input} placeholder="Họ và tên" placeholderTextColor="#aaa" value={fullName} onChangeText={setFullName} />
       <TextInput
         style={styles.input}
-        placeholder="Mobile Number"
+        placeholder="Số điện thoại"
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={15}
@@ -85,7 +102,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="Mật khẩu"
         secureTextEntry
         placeholderTextColor="#aaa"
         value={password}
@@ -93,7 +110,7 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Confirm Password"
+        placeholder="Xác nhận mật khẩu"
         secureTextEntry
         placeholderTextColor="#aaa"
         value={confirmPassword}
@@ -101,15 +118,15 @@ export default function SignUpScreen({ navigation }: SignUpScreenProps) {
       />
 
       <View style={styles.termsContainer}>
-        <Text style={styles.termsText}>By signing up, you agree to terms and conditions.</Text>
+        <Text style={styles.termsText}>Khi đăng ký, bạn đồng ý với điều khoản và điều kiện sử dụng.</Text>
       </View>
 
       <TouchableOpacity style={[styles.button, isSubmitting && styles.buttonDisabled]} onPress={onSubmit} disabled={isSubmitting}>
-        <Text style={styles.buttonText}>{isSubmitting ? 'Dang xu ly...' : 'Submit'}</Text>
+        <Text style={styles.buttonText}>{isSubmitting ? 'Đang xử lý...' : 'Đăng ký'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('Login')}>
-        <Text style={styles.link}>Already have an account? login</Text>
+        <Text style={styles.link}>Đã có tài khoản? Đăng nhập.</Text>
       </TouchableOpacity>
     </LinearGradient>
   );

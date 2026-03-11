@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { apiGet } from '../services/apiClient';
 
@@ -28,7 +29,7 @@ export default function NewsScreen() {
         setError(null);
       } catch (e) {
         if (!active) return;
-        const message = e instanceof Error ? e.message : 'Khong tai duoc tin tuc';
+        const message = e instanceof Error ? e.message : 'Không tải được tin tức.';
         setError(message);
       } finally {
         if (active) setIsLoading(false);
@@ -41,51 +42,62 @@ export default function NewsScreen() {
   }, []);
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Latest News</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.gradientBackground}>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+      <Text style={styles.title}>Tin mới nhất</Text>
 
       {isLoading && <ActivityIndicator size="large" color={COLORS.primary} />}
       {error && <Text style={styles.errorText}>{error}</Text>}
 
       {!isLoading && !error && news.length === 0 && (
-        <Text style={styles.emptyText}>Chua co tin tuc moi.</Text>
+        <Text style={styles.emptyText}>Chưa có tin tức mới.</Text>
       )}
 
-      {news.map(item => (
+        {news.map(item => (
         <View key={item.id} style={styles.newsCard}>
           {item.imageUrl ? (
             <Image source={{ uri: item.imageUrl }} style={styles.newsImage} />
           ) : (
             <View style={styles.imagePlaceholder}>
-              <Text style={styles.imagePlaceholderText}>No image</Text>
+              <Text style={styles.imagePlaceholderText}>Không có ảnh</Text>
             </View>
           )}
           <Text style={styles.newsTitle}>{item.title}</Text>
           <Text style={styles.newsDesc}>{item.summary ?? item.content}</Text>
           <Text style={styles.timeText}>{new Date(item.publishedAt).toLocaleString()}</Text>
         </View>
-      ))}
-    </ScrollView>
+        ))}
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: 10 },
-  content: { paddingBottom: 24 },
+  gradientBackground: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent' },
+  content: { paddingHorizontal: 10, paddingTop: 10, paddingBottom: 24 },
   title: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary, marginBottom: 20, textAlign: 'center' },
-  newsCard: { backgroundColor: 'white', borderRadius: 12, overflow: 'hidden', marginBottom: 20, elevation: 3 },
+  newsCard: {
+    backgroundColor: COLORS.surface,
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 20,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: COLORS.border
+  },
   newsImage: { height: 200, width: '100%' },
   imagePlaceholder: {
     height: 200,
     width: '100%',
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.surfaceSoft,
     justifyContent: 'center',
     alignItems: 'center'
   },
-  imagePlaceholderText: { color: '#6b7280', fontWeight: '600' },
+  imagePlaceholderText: { color: COLORS.textLight, fontWeight: '600' },
   newsTitle: { fontSize: 20, fontWeight: 'bold', padding: 10, color: COLORS.text },
   newsDesc: { paddingHorizontal: 10, color: COLORS.textLight, lineHeight: 20 },
-  timeText: { padding: 10, fontSize: 12, color: '#6b7280' },
+  timeText: { padding: 10, fontSize: 12, color: COLORS.textLight },
   errorText: { textAlign: 'center', color: '#b91c1c', marginBottom: 12 },
   emptyText: { textAlign: 'center', color: COLORS.textLight }
 });

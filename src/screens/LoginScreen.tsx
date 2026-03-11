@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Alert, StyleSheet, Text, TextInput, TouchableOpacity } from 'react-native';
+import { Alert, Image, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import { COLORS } from '../constants/colors';
@@ -34,7 +34,7 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
   const onLogin = async () => {
     if (!phone.trim() || !password) {
-      Alert.alert('Thieu thong tin', 'Vui long nhap so dien thoai va mat khau.');
+      Alert.alert('Thiếu thông tin', 'Vui lòng nhập số điện thoại và mật khẩu.');
       return;
     }
 
@@ -42,12 +42,13 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       setIsSubmitting(true);
       const result = await loginWithPassword({
         phone: phone.trim(),
-        password
+        password,
+        useOtp: false
       });
 
       if ('otpRequired' in result && result.otpRequired) {
         if (result.otpDebugCode) {
-          Alert.alert('OTP (dev mode)', `Ma OTP: ${result.otpDebugCode}`);
+          Alert.alert('OTP (chế độ dev)', `Mã OTP: ${result.otpDebugCode}`);
         }
         navigation.navigate('Otp', {
           phone: phone.trim(),
@@ -61,8 +62,8 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
         routes: [{ name: 'Main' }]
       });
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Dang nhap that bai';
-      Alert.alert('Loi dang nhap', message);
+      const message = error instanceof Error ? error.message : 'Đăng nhập thất bại.';
+      Alert.alert('Lỗi đăng nhập', message);
     } finally {
       setIsSubmitting(false);
     }
@@ -71,49 +72,54 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
   const onSaveApiUrl = async () => {
     const normalized = apiUrlInput.trim();
     if (!/^https?:\/\//i.test(normalized)) {
-      Alert.alert('API URL sai', 'URL phai bat dau bang http:// hoac https://');
+      Alert.alert('API URL sai', 'URL phải bắt đầu bằng http:// hoặc https://.');
       return;
     }
 
     try {
       const saved = await setCustomApiBaseUrl(normalized);
       setApiUrlInput(saved);
-      Alert.alert('Thanh cong', 'Da luu API URL moi.');
+      Alert.alert('Thành công', 'Đã lưu API URL mới.');
     } catch {
-      Alert.alert('Loi', 'Khong the luu API URL');
+      Alert.alert('Lỗi', 'Không thể lưu API URL.');
     }
   };
 
   return (
-    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientEnd]} style={styles.container}>
-      <Text style={styles.title}>Login</Text>
-      <Text style={styles.subtitle}>Please sign in to continue</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.container}>
+      <View style={styles.logoWrap}>
+        <Image source={require('../../assets/hope-app-icon.png')} style={styles.logo} resizeMode="contain" />
+      </View>
+      <Text style={styles.appName}>HOPE</Text>
+
+      <Text style={styles.title}>Đăng nhập</Text>
+      <Text style={styles.subtitle}>Vui lòng đăng nhập để tiếp tục.</Text>
 
       <TouchableOpacity onPress={() => setShowApiConfig(value => !value)}>
-        <Text style={styles.apiToggle}>{showApiConfig ? 'Hide API URL config' : 'Show API URL config'}</Text>
+        <Text style={styles.apiToggle}>{showApiConfig ? 'Ẩn cấu hình API URL' : 'Hiện cấu hình API URL'}</Text>
       </TouchableOpacity>
 
       {showApiConfig && (
         <>
           <TextInput
             style={styles.input}
-            placeholder="https://...trycloudflare.com"
-            placeholderTextColor="#aaa"
+            placeholder="https://api.example.com"
+            placeholderTextColor="rgba(255,255,255,0.7)"
             value={apiUrlInput}
             onChangeText={setApiUrlInput}
             autoCapitalize="none"
             autoCorrect={false}
           />
           <TouchableOpacity style={[styles.apiButton, isSubmitting && styles.buttonDisabled]} onPress={onSaveApiUrl} disabled={isSubmitting}>
-            <Text style={styles.buttonText}>Save API URL</Text>
+            <Text style={styles.buttonText}>Lưu API URL</Text>
           </TouchableOpacity>
         </>
       )}
 
       <TextInput
         style={styles.input}
-        placeholder="Phone number"
-        placeholderTextColor="#aaa"
+        placeholder="Số điện thoại"
+        placeholderTextColor="rgba(255,255,255,0.7)"
         keyboardType="number-pad"
         inputMode="numeric"
         maxLength={15}
@@ -122,19 +128,19 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
       />
       <TextInput
         style={styles.input}
-        placeholder="Password"
+        placeholder="Mật khẩu"
         secureTextEntry
-        placeholderTextColor="#aaa"
+        placeholderTextColor="rgba(255,255,255,0.7)"
         value={password}
         onChangeText={setPassword}
       />
 
       <TouchableOpacity style={[styles.button, isSubmitting && styles.buttonDisabled]} onPress={onLogin} disabled={isSubmitting}>
-        <Text style={styles.buttonText}>{isSubmitting ? 'Dang xu ly...' : 'Login'}</Text>
+        <Text style={styles.buttonText}>{isSubmitting ? 'Đang xử lý...' : 'Đăng nhập'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={() => navigation.navigate('SignUp')}>
-        <Text style={styles.link}>Don't have an account? Sign-up</Text>
+        <Text style={styles.link}>Chưa có tài khoản? Đăng ký.</Text>
       </TouchableOpacity>
     </LinearGradient>
   );
@@ -142,25 +148,46 @@ export default function LoginScreen({ navigation }: LoginScreenProps) {
 
 const styles = StyleSheet.create({
   container: { flex: 1, justifyContent: 'center', padding: 30 },
-  title: { fontSize: 32, color: 'white', fontWeight: 'bold', textAlign: 'center', marginBottom: 10 },
-  subtitle: { fontSize: 16, color: '#ddd', textAlign: 'center', marginBottom: 40 },
-  input: { backgroundColor: 'rgba(255,255,255,0.2)', borderRadius: 12, padding: 15, marginVertical: 10, color: 'white' },
-  button: { backgroundColor: '#FFB74D', borderRadius: 30, padding: 18, marginVertical: 20 },
+  logoWrap: {
+    alignItems: 'center',
+    marginBottom: 8
+  },
+  logo: {
+    width: 170,
+    height: 170
+  },
+  appName: {
+    fontSize: 24,
+    color: '#FFFFFF',
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 1.2,
+    marginBottom: 16
+  },
+  title: { fontSize: 34, color: 'white', fontWeight: 'bold', textAlign: 'center', marginBottom: 8 },
+  subtitle: { fontSize: 16, color: '#E4EFFA', textAlign: 'center', marginBottom: 30 },
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    borderRadius: 12,
+    padding: 15,
+    marginVertical: 8,
+    color: 'white'
+  },
+  button: { backgroundColor: COLORS.accent, borderRadius: 30, padding: 18, marginVertical: 18 },
   buttonDisabled: { opacity: 0.7 },
   buttonText: { color: 'white', fontSize: 18, textAlign: 'center', fontWeight: 'bold' },
-  link: { color: 'white', textAlign: 'center', marginTop: 20 }
-  ,
+  link: { color: 'white', textAlign: 'center', marginTop: 12 },
   apiToggle: {
-    color: '#d7eef4',
+    color: '#E6F2FF',
     textAlign: 'center',
     textDecorationLine: 'underline',
-    marginBottom: 12
+    marginBottom: 10
   },
   apiButton: {
     backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 12,
     padding: 14,
     marginTop: 4,
-    marginBottom: 10
+    marginBottom: 8
   }
 });

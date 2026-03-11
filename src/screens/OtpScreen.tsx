@@ -26,7 +26,7 @@ export default function OtpScreen({ navigation, route }: OtpScreenProps) {
   const onSubmit = async () => {
     const code = otp.replace(/\D/g, '');
     if (code.length !== 6) {
-      Alert.alert('OTP khong hop le', 'Vui long nhap du 6 chu so OTP.');
+      Alert.alert('OTP không hợp lệ', 'Vui lòng nhập đủ 6 chữ số OTP.');
       return;
     }
 
@@ -45,10 +45,10 @@ export default function OtpScreen({ navigation, route }: OtpScreenProps) {
         });
         return;
       }
-      Alert.alert('Loi', 'Khong the xac minh OTP.');
+      Alert.alert('Lỗi', 'Không thể xác minh OTP.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Xac minh OTP that bai';
-      Alert.alert('Loi OTP', message);
+      const message = error instanceof Error ? error.message : 'Xác minh OTP thất bại.';
+      Alert.alert('Lỗi OTP', message);
     } finally {
       setIsSubmitting(false);
     }
@@ -59,23 +59,23 @@ export default function OtpScreen({ navigation, route }: OtpScreenProps) {
       setIsResending(true);
       const result = await requestOtp({ phone, purpose });
       if (result.otpDebugCode) {
-        Alert.alert('OTP moi (dev mode)', `Ma OTP: ${result.otpDebugCode}`);
+        Alert.alert('OTP mới (chế độ dev)', `Mã OTP: ${result.otpDebugCode}`);
       } else {
-        Alert.alert('Thanh cong', 'Da gui lai ma OTP.');
+        Alert.alert('Thành công', 'Đã gửi lại mã OTP.');
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Khong the gui lai OTP';
-      Alert.alert('Loi', message);
+      const message = error instanceof Error ? error.message : 'Không thể gửi lại OTP.';
+      Alert.alert('Lỗi', message);
     } finally {
       setIsResending(false);
     }
   };
 
   return (
-    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientEnd]} style={styles.container}>
-      <Text style={styles.title}>Enter OTP</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.container}>
+      <Text style={styles.title}>Nhập OTP</Text>
       <Text style={styles.subtitle}>
-        Enter 6-digit OTP sent to {maskedPhone}
+        Nhập mã OTP 6 số đã gửi tới {maskedPhone}.
       </Text>
 
       <View style={styles.otpContainer}>
@@ -92,11 +92,11 @@ export default function OtpScreen({ navigation, route }: OtpScreenProps) {
       </View>
 
       <TouchableOpacity style={[styles.button, isSubmitting && styles.disabled]} onPress={onSubmit} disabled={isSubmitting}>
-        <Text style={styles.buttonText}>{isSubmitting ? 'Dang xac minh...' : 'Submit'}</Text>
+        <Text style={styles.buttonText}>{isSubmitting ? 'Đang xác minh...' : 'Xác nhận'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity onPress={onResend} disabled={isResending}>
-        <Text style={styles.resendText}>{isResending ? 'Dang gui lai...' : 'Not received the code? Resend'}</Text>
+        <Text style={styles.resendText}>{isResending ? 'Đang gửi lại...' : 'Chưa nhận được mã? Gửi lại'}</Text>
       </TouchableOpacity>
     </LinearGradient>
   );

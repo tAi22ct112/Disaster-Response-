@@ -13,6 +13,7 @@ export type DrawerParamList = {
   Dashboard: undefined;
   Profile: undefined;
   Settings: undefined;
+  Logout: undefined;
 };
 
 export type TabParamList = {

@@ -9,29 +9,27 @@ type HomeScreenProps = {
 };
 
 export default function HomeScreen({ navigation }: HomeScreenProps) {
-  // Mock news data (sau này thay bằng API hoặc Firebase)
   const newsItems = [
     {
-      title: '2019 Flood Rathnapura City',
-      desc: 'Heavy rainfall caused severe flooding...',
-      image: 'https://example.com/flood.jpg', // thay bằng ảnh thật
+      title: 'Lũ lớn tại thành phố Ratnapura (2019)',
+      desc: 'Mưa lớn kéo dài đã gây ngập nặng nhiều khu vực...',
+      image: 'https://example.com/flood.jpg',
     },
     {
-      title: 'Flash flood warning',
-      desc: 'Heavy rainfall is expected in the next 24 hours...',
+      title: 'Cảnh báo lũ quét',
+      desc: 'Dự báo mưa rất to trong 24 giờ tới...',
       image: 'https://example.com/flood-warning.jpg',
     },
   ];
 
   return (
-    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientEnd]} style={styles.container}>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.logo}>SLDDA</Text>
-        <Text style={styles.subtitle}>Sri Lankan Disaster Aids</Text>
+        <Text style={styles.subtitle}>Hỗ trợ cứu hộ thiên tai</Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* News feed */}
         {newsItems.map((item, index) => (
           <View key={index} style={styles.newsCard}>
             <Image source={{ uri: item.image }} style={styles.newsImage} />
@@ -40,12 +38,8 @@ export default function HomeScreen({ navigation }: HomeScreenProps) {
           </View>
         ))}
 
-        {/* Nút Emergency SOS lớn */}
-        <TouchableOpacity 
-          style={styles.sosButton} 
-          onPress={() => navigation.navigate('SOS')}
-        >
-          <Text style={styles.sosText}>Emergency | SOS</Text>
+        <TouchableOpacity style={styles.sosButton} onPress={() => navigation.navigate('SOS')}>
+          <Text style={styles.sosText}>Khẩn cấp | SOS</Text>
         </TouchableOpacity>
       </ScrollView>
     </LinearGradient>
@@ -58,7 +52,15 @@ const styles = StyleSheet.create({
   logo: { fontSize: 48, color: 'white', fontWeight: 'bold' },
   subtitle: { fontSize: 18, color: 'white', marginTop: 5 },
   scrollContent: { paddingHorizontal: 20, paddingBottom: 40 },
-  newsCard: { backgroundColor: 'white', borderRadius: 16, overflow: 'hidden', marginBottom: 20, elevation: 4 },
+  newsCard: {
+    backgroundColor: 'rgba(234,242,255,0.96)',
+    borderRadius: 16,
+    overflow: 'hidden',
+    marginBottom: 20,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: COLORS.border
+  },
   newsImage: { height: 200, width: '100%' },
   newsTitle: { fontSize: 20, fontWeight: 'bold', color: COLORS.text, padding: 12 },
   newsDesc: { fontSize: 16, color: COLORS.textLight, paddingHorizontal: 12, paddingBottom: 12 },

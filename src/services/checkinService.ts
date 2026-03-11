@@ -211,11 +211,11 @@ async function ensureCategory() {
   await Notifications.setNotificationCategoryAsync(CATEGORY_ID, [
     {
       identifier: ACTION_YES,
-      buttonTitle: 'Co',
+      buttonTitle: 'Có',
     },
     {
       identifier: ACTION_NO,
-      buttonTitle: 'Khong',
+      buttonTitle: 'Không',
       options: { isDestructive: true },
     },
   ]);
@@ -236,14 +236,14 @@ export async function scheduleDailyCheckin(settings: CheckinSettings) {
   }
 
   const granted = await ensureNotificationPermission();
-  if (!granted) throw new Error('Notification permission denied');
+  if (!granted) throw new Error('Bạn chưa cấp quyền thông báo.');
 
   await ensureCategory();
 
   const id = await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Ban co con on khong?',
-      body: 'Vui long chon Co hoac Khong de cap nhat tinh trang an toan.',
+      title: 'Bạn có còn ổn không?',
+      body: 'Vui lòng chọn Có hoặc Không để cập nhật tình trạng an toàn.',
       categoryIdentifier: CATEGORY_ID,
       data: { kind: 'daily_checkin' },
     },
@@ -260,17 +260,17 @@ export async function scheduleDailyCheckin(settings: CheckinSettings) {
 export async function sendImmediateCheckin() {
   const Notifications = await loadNotificationsModule();
   if (!Notifications) {
-    throw new Error('Expo Go khong ho tro day du notification action tren Android SDK 53. Can Development Build.');
+    throw new Error('Expo Go chưa hỗ trợ đầy đủ thao tác thông báo trên Android SDK 53. Cần Development Build.');
   }
 
   const granted = await ensureNotificationPermission();
-  if (!granted) throw new Error('Notification permission denied');
+  if (!granted) throw new Error('Bạn chưa cấp quyền thông báo.');
 
   await ensureCategory();
   await Notifications.scheduleNotificationAsync({
     content: {
-      title: 'Ban co con on khong?',
-      body: 'Vui long chon Co hoac Khong de cap nhat tinh trang an toan.',
+      title: 'Bạn có còn ổn không?',
+      body: 'Vui lòng chọn Có hoặc Không để cập nhật tình trạng an toàn.',
       categoryIdentifier: CATEGORY_ID,
       data: { kind: 'daily_checkin' },
     },
@@ -352,7 +352,7 @@ export async function processNotificationResponse(response: any) {
 
   await recordResponse(actionId === ACTION_YES ? 'yes' : 'no');
   if (actionId === ACTION_NO) {
-    await createEmergencyFromNoResponse('checkin_no', 'Nguoi dung xac nhan KHONG an toan');
+    await createEmergencyFromNoResponse('checkin_no', 'Người dùng xác nhận KHÔNG an toàn.');
   }
 }
 
@@ -366,7 +366,7 @@ export async function evaluateCheckinTimeout() {
   const alreadyRaisedForThisPrompt = state.timeoutAlertForPromptAt === state.lastPromptAt;
 
   if (!hasRespondedAfterPrompt && timeoutReached && !alreadyRaisedForThisPrompt) {
-    await createEmergencyFromNoResponse('checkin_timeout', 'Khong phan hoi check-in sau 3 ngay');
+    await createEmergencyFromNoResponse('checkin_timeout', 'Không phản hồi check-in sau 3 ngày.');
     await saveCheckinState({
       ...state,
       timeoutAlertForPromptAt: state.lastPromptAt,

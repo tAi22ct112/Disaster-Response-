@@ -16,7 +16,9 @@ import NewsScreen from '../screens/NewsScreen';
 import ContactsScreen from '../screens/ContactsScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import AdminDashboardScreen from '../screens/AdminDashboardScreen';
+import LogoutScreen from '../screens/LogoutScreen';
 import type { DrawerParamList, RootStackParamList, TabParamList } from '../types';
+import { COLORS } from '../constants/colors';
 import { getSession, prepareApiBaseUrl, type UserRole } from '../services/apiClient';
 
 const Stack = createStackNavigator<RootStackParamList>();
@@ -37,15 +39,15 @@ function MainTabs() {
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#D82858',
-        tabBarInactiveTintColor: 'gray',
-        tabBarStyle: { backgroundColor: '#FBF2E8' },
+        tabBarActiveTintColor: COLORS.accent,
+        tabBarInactiveTintColor: '#78808A',
+        tabBarStyle: { backgroundColor: '#F6FAFD' }
       })}
     >
-      <Tab.Screen name="Home" component={MapScreen} />
-      <Tab.Screen name="SOS" component={SOSScreen} options={{ title: 'Emergency | SOS' }} />
-      <Tab.Screen name="Contacts" component={ContactsScreen} />
-      <Tab.Screen name="News" component={NewsScreen} />
+      <Tab.Screen name="Home" component={MapScreen} options={{ title: 'Trang chủ' }} />
+      <Tab.Screen name="SOS" component={SOSScreen} options={{ title: 'Khẩn cấp | SOS' }} />
+      <Tab.Screen name="Contacts" component={ContactsScreen} options={{ title: 'Liên hệ' }} />
+      <Tab.Screen name="News" component={NewsScreen} options={{ title: 'Tin tức' }} />
     </Tab.Navigator>
   );
 }
@@ -61,11 +63,28 @@ function DrawerNavigator() {
   }, []);
 
   return (
-    <Drawer.Navigator initialRouteName="Home">
-      <Drawer.Screen name="Home" component={MainTabs} options={{ title: 'SLDDA' }} />
-      {role === 'ADMIN' && <Drawer.Screen name="Dashboard" component={AdminDashboardScreen} />}
-      <Drawer.Screen name="Profile" component={ProfileScreen} />
-      <Drawer.Screen name="Settings" component={SettingsScreen} />
+    <Drawer.Navigator
+      initialRouteName="Home"
+      screenOptions={{
+        headerStyle: { backgroundColor: COLORS.surface },
+        headerTintColor: COLORS.primaryDark,
+        headerTitleStyle: { fontWeight: '700' },
+        drawerActiveTintColor: COLORS.primaryDark,
+        drawerInactiveTintColor: COLORS.textLight
+      }}
+    >
+      <Drawer.Screen name="Home" component={MainTabs} options={{ title: 'HOPE' }} />
+      {role === 'ADMIN' && <Drawer.Screen name="Dashboard" component={AdminDashboardScreen} options={{ title: 'Quản trị' }} />}
+      <Drawer.Screen name="Profile" component={ProfileScreen} options={{ title: 'Hồ sơ' }} />
+      <Drawer.Screen name="Settings" component={SettingsScreen} options={{ title: 'Cài đặt' }} />
+      <Drawer.Screen
+        name="Logout"
+        component={LogoutScreen}
+        options={{
+          title: 'Đăng xuất',
+          drawerIcon: ({ color, size }) => <Ionicons name="log-out-outline" color={color} size={size} />
+        }}
+      />
     </Drawer.Navigator>
   );
 }
@@ -94,7 +113,7 @@ export default function RootNavigator() {
   if (!initialRoute) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#D82858" />
+        <ActivityIndicator size="large" color={COLORS.accent} />
       </View>
     );
   }
@@ -116,6 +135,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff'
+    backgroundColor: COLORS.background
   }
 });

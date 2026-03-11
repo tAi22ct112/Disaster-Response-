@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { apiDelete, apiGet, apiPost } from '../services/apiClient';
 
@@ -25,8 +26,8 @@ export default function ContactsScreen() {
       const data = await apiGet<EmergencyContact[]>('/api/contacts', true);
       setContacts(data ?? []);
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Khong tai duoc danh ba';
-      Alert.alert('Loi', message);
+      const message = error instanceof Error ? error.message : 'Không tải được danh bạ.';
+      Alert.alert('Lỗi', message);
     } finally {
       setIsLoading(false);
     }
@@ -38,7 +39,7 @@ export default function ContactsScreen() {
 
   const onAdd = async () => {
     if (!nameInput.trim() || !phoneInput.trim()) {
-      Alert.alert('Thieu thong tin', 'Nhap ten va so dien thoai.');
+      Alert.alert('Thiếu thông tin', 'Nhập tên và số điện thoại.');
       return;
     }
 
@@ -58,26 +59,26 @@ export default function ContactsScreen() {
       setPhoneInput('');
       await loadContacts();
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Khong the them lien he';
-      Alert.alert('Loi', message);
+      const message = error instanceof Error ? error.message : 'Không thể thêm liên hệ.';
+      Alert.alert('Lỗi', message);
     } finally {
       setIsSaving(false);
     }
   };
 
   const onDelete = (contact: EmergencyContact) => {
-    Alert.alert('Xoa lien he?', `Ban chac chan xoa "${contact.name}"?`, [
-      { text: 'Huy', style: 'cancel' },
+    Alert.alert('Xóa liên hệ?', `Bạn chắc chắn muốn xóa "${contact.name}"?`, [
+      { text: 'Hủy', style: 'cancel' },
       {
-        text: 'Xoa',
+        text: 'Xóa',
         style: 'destructive',
         onPress: async () => {
           try {
             await apiDelete(`/api/contacts/${contact.id}`, true);
             await loadContacts();
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Khong the xoa lien he';
-            Alert.alert('Loi', message);
+            const message = error instanceof Error ? error.message : 'Không thể xóa liên hệ.';
+            Alert.alert('Lỗi', message);
           }
         }
       }
@@ -85,32 +86,33 @@ export default function ContactsScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>Contacts</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.gradientBackground}>
+      <View style={styles.container}>
+      <Text style={styles.title}>Liên hệ khẩn cấp</Text>
 
       <View style={styles.formCard}>
         <TextInput
           value={nameInput}
           onChangeText={setNameInput}
-          placeholder="Ten lien he"
+          placeholder="Tên liên hệ"
           style={styles.input}
         />
         <TextInput
           value={phoneInput}
           onChangeText={setPhoneInput}
-          placeholder="So dien thoai"
+          placeholder="Số điện thoại"
           keyboardType="phone-pad"
           style={styles.input}
         />
         <TouchableOpacity style={[styles.addButton, isSaving && styles.disabled]} onPress={onAdd} disabled={isSaving}>
-          <Text style={styles.addButtonText}>{isSaving ? 'Dang them...' : 'Them contact'}</Text>
+          <Text style={styles.addButtonText}>{isSaving ? 'Đang thêm...' : 'Thêm liên hệ'}</Text>
         </TouchableOpacity>
       </View>
 
       {isLoading ? (
-        <Text style={styles.stateText}>Dang tai danh ba...</Text>
+        <Text style={styles.stateText}>Đang tải danh bạ...</Text>
       ) : contacts.length === 0 ? (
-        <Text style={styles.stateText}>Chua co contact khan cap.</Text>
+        <Text style={styles.stateText}>Chưa có liên hệ khẩn cấp.</Text>
       ) : (
         contacts.map(item => (
           <View key={item.id} style={styles.contactItem}>
@@ -125,26 +127,31 @@ export default function ContactsScreen() {
           </View>
         ))
       )}
-    </View>
+      </View>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background, padding: 20 },
+  gradientBackground: { flex: 1 },
+  container: { flex: 1, backgroundColor: 'transparent', padding: 20 },
   title: { fontSize: 28, fontWeight: 'bold', color: COLORS.primary, marginBottom: 20, textAlign: 'center' },
   formCard: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     padding: 14,
     borderRadius: 12,
-    marginBottom: 14
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   input: {
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    marginBottom: 10
+    marginBottom: 10,
+    backgroundColor: COLORS.inputBackground
   },
   addButton: {
     backgroundColor: COLORS.accent,
@@ -157,11 +164,13 @@ const styles = StyleSheet.create({
   contactItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surfaceSoft,
     padding: 15,
     borderRadius: 12,
     marginBottom: 10,
-    elevation: 2
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   icon: { fontSize: 28, color: COLORS.primary, marginRight: 12, width: 30, textAlign: 'center' },
   contactMeta: { flex: 1 },

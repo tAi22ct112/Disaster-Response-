@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Alert, ScrollView, Share, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import { COLORS } from '../constants/colors';
 import { addSosMarker, flushQueuedCheckins, updateEmergencyLocation } from '../services/checkinService';
 import { ApiRequestError, apiGet, apiPatch, apiPost, uploadSosImage } from '../services/apiClient';
@@ -33,7 +34,6 @@ type SosCreateResponse = {
 type OfflineSosItem = {
   localId: string;
   payload: SosCreatePayload;
-  meshCode: string;
   createdAt: number;
 };
 
@@ -58,24 +58,6 @@ type CaptchaChallenge = {
 function isOfflineSosId(id: string | null) {
   return !!id && id.startsWith('offline-');
 }
-
-const buildMeshCode = (payload: SosCreatePayload) => {
-  return `SOSMESH|${encodeURIComponent(JSON.stringify(payload))}`;
-};
-
-const parseMeshCode = (value: string) => {
-  const text = value.trim();
-  if (!text.startsWith('SOSMESH|')) {
-    throw new Error('Ma Mesh khong hop le');
-  }
-  const encoded = text.slice('SOSMESH|'.length);
-  const decoded = decodeURIComponent(encoded);
-  const parsed = JSON.parse(decoded) as SosCreatePayload;
-  if (!parsed.latitude || !parsed.longitude || !parsed.severity) {
-    throw new Error('Noi dung ma Mesh khong day du');
-  }
-  return parsed;
-};
 
 async function getOfflineSosQueue() {
   const raw = await AsyncStorage.getItem(OFFLINE_SOS_QUEUE_KEY);
@@ -106,8 +88,6 @@ export default function SOSScreen() {
   const [trackingText, setTrackingText] = useState<string>('');
   const [peopleCountInput, setPeopleCountInput] = useState('1');
   const [injuryStatusInput, setInjuryStatusInput] = useState('');
-  const [relayCodeInput, setRelayCodeInput] = useState('');
-  const [meshCodeToShare, setMeshCodeToShare] = useState<string>('');
 
   const [selectedImageUri, setSelectedImageUri] = useState<string>('');
   const [uploadedImageUrl, setUploadedImageUrl] = useState<string>('');
@@ -165,7 +145,7 @@ export default function SOSScreen() {
           longitude: created.longitude,
           createdAt: new Date(created.createdAt).getTime(),
           source: 'manual',
-          note: created.message ?? 'SOS da duoc gui'
+          note: created.message ?? 'SOS đã được gửi.'
         });
 
         if (activeSosId === item.localId) {
@@ -173,7 +153,7 @@ export default function SOSScreen() {
         }
       } catch (error) {
         if (error instanceof ApiRequestError && error.message === 'CAPTCHA_REQUIRED') {
-          setTrackingText('SOS offline dang cho CAPTCHA, vui long mo app de xac thuc.');
+          setTrackingText('SOS offline đang chờ CAPTCHA, vui lòng mở app để xác thực.');
         }
         remaining.push(item);
       }
@@ -244,7 +224,7 @@ export default function SOSScreen() {
 
   useEffect(() => {
     if (!activeSosId || isOfflineSosId(activeSosId)) {
-      setTrackingText(hasOfflinePending ? 'Dang cho co mang de gui SOS...' : '');
+      setTrackingText(hasOfflinePending ? 'Đang chờ có mạng để gửi SOS...' : '');
       return;
     }
 
@@ -255,18 +235,18 @@ export default function SOSScreen() {
         if (!active) return;
 
         if (!tracking.assigned) {
-          setTrackingText(tracking.message ?? 'Dang tim doi cuu ho gan ban...');
+          setTrackingText(tracking.message ?? 'Đang tìm đội cứu hộ gần bạn...');
           return;
         }
 
         const rescuerName = tracking.rescuer?.fullName ? ` (${tracking.rescuer.fullName})` : '';
-        const eta = tracking.etaMinutes ? `ETA: ${tracking.etaMinutes} phut` : 'Dang tinh ETA';
+        const eta = tracking.etaMinutes ? `ETA: ${tracking.etaMinutes} phút` : 'Đang tính ETA';
         const distance =
-          tracking.distanceToVictimKm !== undefined ? ` | Cach ban: ${tracking.distanceToVictimKm.toFixed(2)} km` : '';
-        setTrackingText(`Doi cuu ho dang toi${rescuerName}. ${eta}${distance}`);
+          tracking.distanceToVictimKm !== undefined ? ` | Cách bạn: ${tracking.distanceToVictimKm.toFixed(2)} km` : '';
+        setTrackingText(`Đội cứu hộ đang tới${rescuerName}. ${eta}${distance}`);
       } catch {
         if (active) {
-          setTrackingText('Tam mat ket noi tracking, app se tu dong thu lai...');
+          setTrackingText('Tạm mất kết nối theo dõi, app sẽ tự động thử lại...');
         }
       }
     };
@@ -285,19 +265,16 @@ export default function SOSScreen() {
   const enqueueOfflineSos = async (payload: SosCreatePayload) => {
     const queue = await getOfflineSosQueue();
     const localId = `offline-${Date.now()}`;
-    const meshCode = buildMeshCode(payload);
     const next: OfflineSosItem[] = [
       ...queue,
       {
         localId,
         payload,
-        meshCode,
         createdAt: Date.now()
       }
     ];
     await saveOfflineSosQueue(next);
     await setActiveSos(localId);
-    setMeshCodeToShare(meshCode);
     return localId;
   };
 
@@ -306,7 +283,7 @@ export default function SOSScreen() {
     if (!normalized) return undefined;
     const parsed = Number(normalized);
     if (!Number.isFinite(parsed) || parsed < 1 || parsed > 500) {
-      throw new Error('So nguoi di cung phai trong khoang 1-500');
+      throw new Error('Số người đi cùng phải trong khoảng 1-500.');
     }
     return Math.floor(parsed);
   };
@@ -314,7 +291,7 @@ export default function SOSScreen() {
   const uploadSelectedImage = async () => {
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
-      throw new Error('Can cap quyen thu vien anh de dinh kem hinh.');
+      throw new Error('Cần cấp quyền thư viện ảnh để đính kèm hình.');
     }
 
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -337,7 +314,7 @@ export default function SOSScreen() {
         mimeType: asset.mimeType ?? undefined
       });
       setUploadedImageUrl(uploaded.imageUrl);
-      Alert.alert('Thanh cong', 'Da upload anh hien truong.');
+      Alert.alert('Thành công', 'Đã upload ảnh hiện trường.');
     } finally {
       setIsUploadingImage(false);
     }
@@ -347,7 +324,7 @@ export default function SOSScreen() {
     return {
       latitude: coords.latitude,
       longitude: coords.longitude,
-      message: 'Nguoi dung dang can cuu ho ngay lap tuc',
+      message: 'Người dùng đang cần cứu hộ ngay lập tức.',
       severity: 'CRITICAL',
       peopleCount: parsePeopleCount(),
       injuryStatus: injuryStatusInput.trim() || undefined,
@@ -360,7 +337,7 @@ export default function SOSScreen() {
   const sendSos = async () => {
     const permission = await Location.requestForegroundPermissionsAsync();
     if (permission.status !== 'granted') {
-      throw new Error('Can cap quyen vi tri de gui SOS.');
+      throw new Error('Cần cấp quyền vị trí để gửi SOS.');
     }
 
     const current = await Location.getCurrentPositionAsync({
@@ -377,10 +354,10 @@ export default function SOSScreen() {
         longitude: created.longitude,
         createdAt: new Date(created.createdAt).getTime(),
         source: 'manual',
-        note: created.message ?? 'SOS da duoc gui'
+        note: created.message ?? 'SOS đã được gửi.'
       });
       resetCaptcha();
-      setTrackingText('SOS da gui. Dang tim doi cuu ho...');
+      setTrackingText('SOS đã gửi. Đang tìm đội cứu hộ...');
       return;
     } catch (error) {
       if (error instanceof ApiRequestError) {
@@ -388,15 +365,15 @@ export default function SOSScreen() {
         if (challenge) {
           setCaptchaId(challenge.challengeId);
           setCaptchaQuestion(challenge.question);
-          setTrackingText('He thong yeu cau CAPTCHA de xac minh SOS.');
-          throw new Error(`Can nhap CAPTCHA: ${challenge.question}`);
+          setTrackingText('Hệ thống yêu cầu CAPTCHA để xác minh SOS.');
+          throw new Error(`Cần nhập CAPTCHA: ${challenge.question}`);
         }
         throw error;
       }
     }
 
     const localId = await enqueueOfflineSos(payload);
-    setTrackingText('Khong co mang. SOS da luu offline, se tu gui khi co ket noi.');
+    setTrackingText('Không có mạng. SOS đã lưu offline, sẽ tự gửi khi có kết nối.');
     await updateEmergencyLocation(
       {
         latitude: current.coords.latitude,
@@ -416,7 +393,6 @@ export default function SOSScreen() {
       await saveOfflineSosQueue(remaining);
       await setActiveSos(null);
       setTrackingText('');
-      setMeshCodeToShare('');
       return;
     }
 
@@ -431,43 +407,25 @@ export default function SOSScreen() {
 
     await setActiveSos(null);
     setTrackingText('');
-    setMeshCodeToShare('');
-  };
-
-  const relayMeshCode = async () => {
-    const payload = parseMeshCode(relayCodeInput);
-    await apiPost('/api/sos', payload, true);
-    Alert.alert('Da relay', 'Da relay SOS tu ma Mesh len server.');
-    setRelayCodeInput('');
-  };
-
-  const shareMeshCode = async () => {
-    if (!meshCodeToShare) {
-      Alert.alert('Chua co ma', 'Chua co SOS offline de chia se.');
-      return;
-    }
-    await Share.share({
-      message: `Ma SOS Mesh:\n${meshCodeToShare}`
-    });
   };
 
   const toggleSOS = () => {
     if (isBusy) return;
 
     if (isSending) {
-      Alert.alert('Dung SOS?', 'Ban muon dung tin hieu SOS hien tai?', [
-        { text: 'Khong', style: 'cancel' },
+      Alert.alert('Dừng SOS?', 'Bạn muốn dừng tín hiệu SOS hiện tại?', [
+        { text: 'Không', style: 'cancel' },
         {
-          text: 'Dung',
+          text: 'Dừng',
           style: 'destructive',
           onPress: async () => {
             try {
               setIsBusy(true);
               await cancelSos();
-              Alert.alert('Da dung', 'Tin hieu SOS da duoc huy.');
+              Alert.alert('Đã dừng', 'Tín hiệu SOS đã được hủy.');
             } catch (error) {
-              const message = error instanceof Error ? error.message : 'Khong the huy SOS';
-              Alert.alert('Loi', message);
+              const message = error instanceof Error ? error.message : 'Không thể hủy SOS.';
+              Alert.alert('Lỗi', message);
             } finally {
               setIsBusy(false);
             }
@@ -477,19 +435,19 @@ export default function SOSScreen() {
       return;
     }
 
-    Alert.alert('Gui SOS khan cap?', 'Ban chac chan can cuu ho ngay lap tuc?', [
-      { text: 'Huy', style: 'cancel' },
+    Alert.alert('Gửi SOS khẩn cấp?', 'Bạn chắc chắn cần cứu hộ ngay lập tức?', [
+      { text: 'Hủy', style: 'cancel' },
       {
-        text: 'GUI NGAY',
+        text: 'GỬI NGAY',
         style: 'destructive',
         onPress: async () => {
           try {
             setIsBusy(true);
             await sendSos();
-            Alert.alert('Thanh cong', 'Yeu cau SOS da duoc tiep nhan.');
+            Alert.alert('Thành công', 'Yêu cầu SOS đã được tiếp nhận.');
           } catch (error) {
-            const message = error instanceof Error ? error.message : 'Khong the gui SOS';
-            Alert.alert('Loi', message);
+            const message = error instanceof Error ? error.message : 'Không thể gửi SOS.';
+            Alert.alert('Lỗi', message);
           } finally {
             setIsBusy(false);
           }
@@ -499,63 +457,64 @@ export default function SOSScreen() {
   };
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <Text style={styles.title}>SOS KHAN CAP</Text>
-      <Text style={styles.subtitle}>Nhan nut do de gui tin hieu cuu ho den server</Text>
+    <LinearGradient colors={[COLORS.gradientStart, COLORS.gradientMid, COLORS.gradientEnd]} style={styles.gradientBackground}>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.container}>
+      <Text style={styles.title}>SOS KHẨN CẤP</Text>
+      <Text style={styles.subtitle}>Nhấn nút đỏ để gửi tín hiệu cứu hộ đến server.</Text>
 
       <View style={styles.formCard}>
-        <Text style={styles.label}>So nguoi di cung (tuy chon)</Text>
+        <Text style={styles.label}>Số người đi cùng (tùy chọn)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Vi du: 3"
+          placeholder="Ví dụ: 3"
           keyboardType="number-pad"
           value={peopleCountInput}
           onChangeText={text => setPeopleCountInput(text.replace(/\D/g, '').slice(0, 3))}
         />
 
-        <Text style={styles.label}>Tinh trang bi thuong (tuy chon)</Text>
+        <Text style={styles.label}>Tình trạng bị thương (tùy chọn)</Text>
         <TextInput
           style={styles.input}
-          placeholder="Vi du: Gay chan, chay mau..."
+          placeholder="Ví dụ: Gãy chân, chảy máu..."
           value={injuryStatusInput}
           onChangeText={setInjuryStatusInput}
           maxLength={200}
         />
 
-        <Text style={styles.label}>Anh hien truong that (multipart upload)</Text>
+        <Text style={styles.label}>Ảnh hiện trường thật (multipart upload)</Text>
         <TouchableOpacity
           style={[styles.secondaryBtn, isUploadingImage && styles.disabled]}
           onPress={() => {
             uploadSelectedImage().catch(error => {
-              const message = error instanceof Error ? error.message : 'Khong the upload anh';
-              Alert.alert('Loi', message);
+              const message = error instanceof Error ? error.message : 'Không thể upload ảnh.';
+              Alert.alert('Lỗi', message);
             });
           }}
           disabled={isUploadingImage}
         >
-          <Text style={styles.secondaryBtnText}>{isUploadingImage ? 'Dang upload...' : 'Chon & Upload Anh'}</Text>
+          <Text style={styles.secondaryBtnText}>{isUploadingImage ? 'Đang upload...' : 'Chọn & upload ảnh'}</Text>
         </TouchableOpacity>
-        {!!selectedImageUri && <Text style={styles.helperText}>Da chon anh: {selectedImageUri.split('/').pop()}</Text>}
-        {!!uploadedImageUrl && <Text style={styles.helperText}>Image URL: {uploadedImageUrl}</Text>}
+        {!!selectedImageUri && <Text style={styles.helperText}>Đã chọn ảnh: {selectedImageUri.split('/').pop()}</Text>}
+        {!!uploadedImageUrl && <Text style={styles.helperText}>Đường dẫn ảnh: {uploadedImageUrl}</Text>}
 
         <View style={styles.captchaBox}>
           <View style={styles.captchaHeader}>
-            <Text style={styles.label}>CAPTCHA (chi can khi he thong yeu cau)</Text>
+            <Text style={styles.label}>CAPTCHA (chỉ cần khi hệ thống yêu cầu)</Text>
             <TouchableOpacity
               onPress={() => {
                 fetchCaptcha().catch(error => {
-                  const message = error instanceof Error ? error.message : 'Khong the lay CAPTCHA';
-                  Alert.alert('Loi', message);
+                  const message = error instanceof Error ? error.message : 'Không thể lấy CAPTCHA.';
+                  Alert.alert('Lỗi', message);
                 });
               }}
             >
-              <Text style={styles.linkBtn}>Lay CAPTCHA</Text>
+              <Text style={styles.linkBtn}>Lấy CAPTCHA</Text>
             </TouchableOpacity>
           </View>
-          {!!captchaQuestion && <Text style={styles.helperText}>Cau hoi: {captchaQuestion}</Text>}
+          {!!captchaQuestion && <Text style={styles.helperText}>Câu hỏi: {captchaQuestion}</Text>}
           <TextInput
             style={styles.input}
-            placeholder="Nhap dap an CAPTCHA"
+            placeholder="Nhập đáp án CAPTCHA"
             value={captchaAnswer}
             onChangeText={setCaptchaAnswer}
             keyboardType="number-pad"
@@ -568,64 +527,44 @@ export default function SOSScreen() {
         onPress={toggleSOS}
         disabled={isBusy || isUploadingImage}
       >
-        <Text style={styles.sosText}>{isSending ? 'DANG GUI...\n(Nhan de dung)' : 'SOS'}</Text>
+        <Text style={styles.sosText}>{isSending ? 'ĐANG GỬI...\n(Nhấn để dừng)' : 'SOS'}</Text>
       </TouchableOpacity>
 
-      {isSending && <Text style={styles.status}>Dang phat tin hieu khan cap...</Text>}
+      {isSending && <Text style={styles.status}>Đang phát tín hiệu khẩn cấp...</Text>}
       {!!trackingText && <Text style={styles.tracking}>{trackingText}</Text>}
-      {hasOfflinePending && <Text style={styles.offlineHint}>Mode offline: du lieu se tu dong gui lai khi co mang.</Text>}
+      {hasOfflinePending && <Text style={styles.offlineHint}>Chế độ offline: dữ liệu sẽ tự động gửi lại khi có mạng.</Text>}
 
-      <View style={styles.meshCard}>
-        <Text style={styles.meshTitle}>Mesh Relay (fallback)</Text>
-        <Text style={styles.helperText}>
-          Khi mat internet hoan toan, chia se ma Mesh cho may khac co mang de relay SOS.
-        </Text>
-        <TouchableOpacity style={styles.secondaryBtn} onPress={() => shareMeshCode().catch(() => undefined)}>
-          <Text style={styles.secondaryBtnText}>Chia Se Ma Mesh SOS</Text>
-        </TouchableOpacity>
-        {!!meshCodeToShare && <Text style={styles.meshCode}>{meshCodeToShare}</Text>}
-
-        <TextInput
-          style={styles.input}
-          placeholder="Dan ma SOSMESH|..."
-          value={relayCodeInput}
-          onChangeText={setRelayCodeInput}
-          autoCapitalize="none"
-          autoCorrect={false}
-        />
-        <TouchableOpacity
-          style={styles.secondaryBtn}
-          onPress={() => {
-            relayMeshCode().catch(error => {
-              const message = error instanceof Error ? error.message : 'Khong relay duoc ma Mesh';
-              Alert.alert('Loi', message);
-            });
-          }}
-        >
-          <Text style={styles.secondaryBtnText}>Relay Ma Mesh Len Server</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </ScrollView>
+    </LinearGradient>
   );
 }
 
 const styles = StyleSheet.create({
+  gradientBackground: {
+    flex: 1
+  },
+  scrollView: {
+    flex: 1,
+    backgroundColor: 'transparent'
+  },
   container: {
     flexGrow: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f8f9fa',
+    backgroundColor: 'transparent',
     paddingHorizontal: 20,
     paddingVertical: 24
   },
   title: { fontSize: 34, fontWeight: 'bold', color: '#c62828', marginBottom: 12, textAlign: 'center' },
-  subtitle: { fontSize: 16, textAlign: 'center', color: '#555', marginBottom: 18 },
+  subtitle: { fontSize: 16, textAlign: 'center', color: COLORS.textLight, marginBottom: 18 },
   formCard: {
     width: '100%',
-    backgroundColor: '#ffffff',
+    backgroundColor: COLORS.surface,
     borderRadius: 14,
     padding: 14,
-    marginBottom: 18
+    marginBottom: 18,
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   label: {
     fontSize: 13,
@@ -636,12 +575,12 @@ const styles = StyleSheet.create({
   },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    color: '#111827',
-    backgroundColor: '#fff'
+    color: COLORS.text,
+    backgroundColor: COLORS.inputBackground
   },
   helperText: {
     marginTop: 6,
@@ -650,20 +589,22 @@ const styles = StyleSheet.create({
   },
   secondaryBtn: {
     marginTop: 8,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: COLORS.surfaceSoft,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
-    alignItems: 'center'
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   secondaryBtnText: {
-    color: '#111827',
+    color: COLORS.primaryDark,
     fontWeight: '700'
   },
   captchaBox: {
     marginTop: 10,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: COLORS.border,
     paddingTop: 8
   },
   captchaHeader: {
@@ -702,25 +643,5 @@ const styles = StyleSheet.create({
     color: '#92400e',
     textAlign: 'center',
     paddingHorizontal: 10
-  },
-  meshCard: {
-    marginTop: 16,
-    width: '100%',
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    padding: 14
-  },
-  meshTitle: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#111827'
-  },
-  meshCode: {
-    marginTop: 8,
-    padding: 8,
-    backgroundColor: '#f3f4f6',
-    borderRadius: 8,
-    color: '#111827',
-    fontSize: 11
   }
 });

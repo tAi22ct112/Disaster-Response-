@@ -1,16 +1,16 @@
 ﻿{
     "expo":  {
-                 "name":  "DisasterResponseNetwork",
-                 "slug":  "DisasterResponseNetwork",
+                 "name":  "HOPE",
+                 "slug":  "hope",
                  "owner":  "tafi2603",
                  "version":  "1.0.0",
                  "orientation":  "portrait",
-                 "icon":  "./assets/icon.png",
+                 "icon":  "./assets/hope-app-icon.png",
                  "userInterfaceStyle":  "light",
                  "splash":  {
-                                "image":  "./assets/splash-icon.png",
+                                "image":  "./assets/hope-logo.png",
                                 "resizeMode":  "contain",
-                                "backgroundColor":  "#ffffff"
+                                "backgroundColor":  "#041C34"
                             },
                  "ios":  {
                              "supportsTablet":  true,
@@ -18,6 +18,8 @@
                                                "NSBluetoothAlwaysUsageDescription":  "á»¨ng dá»¥ng cáº§n Bluetooth liÃªn tá»¥c Ä‘á»ƒ gá»­i/nháº­n tÃ­n hiá»‡u cá»©u há»™ kháº©n cáº¥p khi khÃ´ng cÃ³ máº¡ng",
                                                "NSLocationWhenInUseUsageDescription":  "á»¨ng dá»¥ng cáº§n vá»‹ trÃ­ Ä‘á»ƒ hiá»ƒn thá»‹ báº£n Ä‘á»“ cá»©u há»™ vÃ  chia sáº» vá»‹ trÃ­",
                                                "NSLocationAlwaysAndWhenInUseUsageDescription":  "á»¨ng dá»¥ng cáº§n vá»‹ trÃ­ ná»n Ä‘á»ƒ theo dÃµi vÃ  gá»­i SOS cá»©u há»™",
+                                               "NSPhotoLibraryUsageDescription":  "Ứng dụng cần quyền truy cập thư viện ảnh và video để chọn ảnh đại diện.",
+                                               "NSPhotoLibraryAddUsageDescription":  "Ứng dụng cần quyền lưu ảnh khi người dùng cập nhật ảnh đại diện.",
                                                "UIBackgroundModes":  [
                                                                          "bluetooth-central",
                                                                          "bluetooth-peripheral",
@@ -28,9 +30,8 @@
                          },
                  "android":  {
                                  "adaptiveIcon":  {
-                                                      "backgroundColor":  "#E6F4FE",
-                                                      "foregroundImage":  "./assets/android-icon-foreground.png",
-                                                      "backgroundImage":  "./assets/android-icon-background.png",
+                                                      "backgroundColor":  "#0A4F8A",
+                                                      "foregroundImage":  "./assets/hope-app-icon.png",
                                                       "monochromeImage":  "./assets/android-icon-monochrome.png"
                                                   },
                                  "config":  {
@@ -42,6 +43,8 @@
                                                      "android.permission.ACCESS_FINE_LOCATION",
                                                      "android.permission.ACCESS_COARSE_LOCATION",
                                                      "android.permission.ACCESS_BACKGROUND_LOCATION",
+                                                     "android.permission.READ_MEDIA_IMAGES",
+                                                     "android.permission.READ_MEDIA_VIDEO",
                                                      "android.permission.BLUETOOTH",
                                                      "android.permission.BLUETOOTH_ADMIN",
                                                      "android.permission.BLUETOOTH_SCAN",

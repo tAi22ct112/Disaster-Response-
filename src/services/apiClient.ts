@@ -33,6 +33,13 @@ type ApiErrorPayload = {
   details?: unknown;
 };
 
+type ValidationErrorDetails = {
+  formErrors?: string[];
+  fieldErrors?: Record<string, string[] | undefined>;
+};
+
+const SESSION_EXPIRED_MESSAGE = 'Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.';
+
 export class ApiRequestError extends Error {
   status: number;
   details?: unknown;
@@ -52,6 +59,37 @@ function readUnknownErrorMessage(error: unknown) {
   return 'Unknown network error';
 }
 
+function parseValidationMessage(details: unknown) {
+  if (!details || typeof details !== 'object') return null;
+  const parsed = details as ValidationErrorDetails;
+
+  const formError = parsed.formErrors?.find(Boolean);
+  if (formError) return formError;
+
+  const entries = Object.entries(parsed.fieldErrors ?? {});
+  for (const [field, messages] of entries) {
+    const firstMessage = messages?.find(Boolean);
+    if (!firstMessage) continue;
+
+    if (field === 'phone') return 'Số điện thoại không hợp lệ.';
+    if (field === 'email') return 'Email không hợp lệ.';
+    if (field === 'fullName') return 'Họ và tên phải có ít nhất 2 ký tự.';
+    if (field === 'password') return 'Mật khẩu phải có ít nhất 8 ký tự.';
+
+    return firstMessage;
+  }
+
+  return null;
+}
+
+function resolveApiErrorMessage(payload: ApiErrorPayload | null, fallbackMessage: string) {
+  if (!payload) return fallbackMessage;
+  if (payload.message === 'Validation failed') {
+    return parseValidationMessage(payload.details) ?? 'Dữ liệu nhập chưa hợp lệ.';
+  }
+  return payload.message ?? fallbackMessage;
+}
+
 type RequestOptions = {
   method?: 'GET' | 'POST' | 'PATCH' | 'DELETE';
   body?: unknown;
@@ -67,6 +105,22 @@ let apiBootstrapPromise: Promise<string> | null = null;
 type ApiDiscoveryPayload = {
   apiBaseUrl?: string;
 };
+
+function isValidAuthSession(value: unknown): value is AuthSession {
+  if (!value || typeof value !== 'object') return false;
+  const session = value as Partial<AuthSession>;
+
+  if (!session.accessToken || typeof session.accessToken !== 'string') return false;
+  if (!session.refreshToken || typeof session.refreshToken !== 'string') return false;
+  if (!session.user || typeof session.user !== 'object') return false;
+
+  const user = session.user as Partial<AuthUser>;
+  if (!user.id || typeof user.id !== 'string') return false;
+  if (!user.phone || typeof user.phone !== 'string') return false;
+  if (!user.role || typeof user.role !== 'string') return false;
+
+  return true;
+}
 
 function readHostFromExpo() {
   const expoConfig = Constants.expoConfig as { hostUri?: string; extra?: { apiBaseUrl?: string } } | null;
@@ -260,10 +314,17 @@ export async function getSession() {
   const raw = await AsyncStorage.getItem(AUTH_SESSION_KEY);
   if (!raw) return null;
   try {
-    const parsed = JSON.parse(raw) as AuthSession;
+    const parsed = JSON.parse(raw) as unknown;
+    if (!isValidAuthSession(parsed)) {
+      await AsyncStorage.removeItem(AUTH_SESSION_KEY);
+      memorySession = null;
+      return null;
+    }
     memorySession = parsed;
     return parsed;
   } catch {
+    await AsyncStorage.removeItem(AUTH_SESSION_KEY);
+    memorySession = null;
     return null;
   }
 }
@@ -276,7 +337,7 @@ export async function clearSession() {
 async function refreshSessionIfPossible() {
   const session = await getSession();
   if (!session?.refreshToken) {
-    throw new Error('Unauthorized');
+    throw new Error(SESSION_EXPIRED_MESSAGE);
   }
 
   const refreshUrl = await buildUrl('/api/auth/refresh');
@@ -313,7 +374,11 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   const auth = options?.auth ?? false;
   const retryOnUnauthorized = options?.retryOnUnauthorized ?? true;
   const isFormData = options?.isFormData ?? false;
-  const session = auth ? await getSession() : null;
+  let session = auth ? await getSession() : null;
+
+  if (auth && !session) {
+    throw new ApiRequestError(SESSION_EXPIRED_MESSAGE, 401);
+  }
 
   const headers: Record<string, string> = {
     Accept: 'application/json'
@@ -375,7 +440,14 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
   }
 
   if (response.status === 401 && auth && retryOnUnauthorized) {
-    const refreshed = await refreshSessionIfPossible();
+    let refreshed: AuthSession;
+    try {
+      refreshed = await refreshSessionIfPossible();
+    } catch {
+      await clearSession();
+      throw new ApiRequestError(SESSION_EXPIRED_MESSAGE, 401);
+    }
+
     const retryHeaders = {
       ...headers,
       Authorization: `Bearer ${refreshed.accessToken}`
@@ -393,8 +465,12 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
 
     if (!retryResponse.ok) {
       const retryErrorPayload = await readJsonSafe<ApiErrorPayload>(retryResponse);
+      if (retryResponse.status === 401 && auth) {
+        await clearSession();
+        throw new ApiRequestError(SESSION_EXPIRED_MESSAGE, 401, retryErrorPayload?.details);
+      }
       throw new ApiRequestError(
-        retryErrorPayload?.message ?? `Request failed (${retryResponse.status})`,
+        resolveApiErrorMessage(retryErrorPayload, `Request failed (${retryResponse.status})`),
         retryResponse.status,
         retryErrorPayload?.details
       );
@@ -408,8 +484,12 @@ async function request<T>(path: string, options?: RequestOptions): Promise<T> {
 
   if (!response.ok) {
     const errorPayload = await readJsonSafe<ApiErrorPayload>(response);
+    if (response.status === 401 && auth) {
+      await clearSession();
+      throw new ApiRequestError(SESSION_EXPIRED_MESSAGE, 401, errorPayload?.details);
+    }
     throw new ApiRequestError(
-      errorPayload?.message ?? `Request failed (${response.status})`,
+      resolveApiErrorMessage(errorPayload, `Request failed (${response.status})`),
       response.status,
       errorPayload?.details
     );
@@ -464,7 +544,7 @@ export async function loginWithPassword(input: { phone: string; password: string
         otpDebugCode?: string;
       }
     | (AuthSession & { otpRequired?: false })
-  >('/api/auth/login', { ...input, useOtp: input.useOtp ?? true }, false);
+  >('/api/auth/login', { ...input, useOtp: input.useOtp ?? false }, false);
 }
 
 export async function requestOtp(input: { phone: string; purpose: OtpPurpose }) {
@@ -529,4 +609,21 @@ export async function uploadSosImage(input: { uri: string; fileName?: string; mi
     size: number;
     originalName: string;
   }>('/api/uploads/sos-image', formData, true);
+}
+
+export async function uploadAvatarImage(input: { uri: string; fileName?: string; mimeType?: string }) {
+  const formData = new FormData();
+  formData.append('image', {
+    uri: input.uri,
+    name: input.fileName ?? `avatar-${Date.now()}.jpg`,
+    type: input.mimeType ?? inferImageMimeType(input.uri)
+  } as unknown as Blob);
+
+  return apiPostFormData<{
+    imageUrl: string;
+    relativePath: string;
+    mimeType: string;
+    size: number;
+    originalName: string;
+  }>('/api/uploads/avatar-image', formData, true);
 }

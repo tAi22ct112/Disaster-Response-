@@ -33,7 +33,7 @@ export default function SettingsScreen() {
   const onSave = async () => {
     const hm = parseTimeInput(timeInput);
     if (!hm) {
-      Alert.alert('Sai dinh dang', 'Nhap gio theo dinh dang HH:mm. Vi du: 20:30');
+      Alert.alert('Sai định dạng', 'Nhập giờ theo định dạng HH:mm. Ví dụ: 20:30.');
       return;
     }
 
@@ -50,16 +50,16 @@ export default function SettingsScreen() {
       await scheduleDailyCheckin(nextSettings);
       setSettings(nextSettings);
       if (isNotificationRuntimeSupported()) {
-        Alert.alert('Da luu', 'He thong check-in da duoc cap nhat.');
+        Alert.alert('Đã lưu', 'Hệ thống check-in đã được cập nhật.');
       } else {
         Alert.alert(
-          'Da luu',
-          'Dang chay Expo Go nen notification action bi gioi han. Muon test day du, can dung Development Build.'
+          'Đã lưu',
+          'Đang chạy Expo Go nên thao tác thông báo bị giới hạn. Muốn test đầy đủ, cần dùng Development Build.'
         );
       }
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Khong the cap nhat check-in';
-      Alert.alert('Loi', message);
+      const message = error instanceof Error ? error.message : 'Không thể cập nhật check-in.';
+      Alert.alert('Lỗi', message);
     } finally {
       setIsSaving(false);
     }
@@ -68,24 +68,24 @@ export default function SettingsScreen() {
   const onSendTestNow = async () => {
     try {
       await sendImmediateCheckin();
-      Alert.alert('Da gui', 'Thong bao check-in test da duoc gui ngay.');
+      Alert.alert('Đã gửi', 'Thông báo check-in test đã được gửi ngay.');
     } catch (error) {
-      const message = error instanceof Error ? error.message : 'Khong the gui check-in test';
-      Alert.alert('Loi', message);
+      const message = error instanceof Error ? error.message : 'Không thể gửi check-in test.';
+      Alert.alert('Lỗi', message);
     }
   };
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Settings</Text>
+      <Text style={styles.title}>Cài đặt</Text>
 
       <View style={styles.item}>
-        <Text style={styles.label}>Bat check-in hang ngay</Text>
+        <Text style={styles.label}>Bật check-in hằng ngày</Text>
         <Switch value={settings.enabled} onValueChange={enabled => setSettings(prev => ({ ...prev, enabled }))} />
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Gio check-in moi ngay (HH:mm)</Text>
+        <Text style={styles.label}>Giờ check-in mỗi ngày (HH:mm)</Text>
         <TextInput
           value={timeInput}
           onChangeText={setTimeInput}
@@ -95,31 +95,31 @@ export default function SettingsScreen() {
           style={styles.input}
         />
         <Text style={styles.hint}>
-          Den gio nay app se gui thong bao: "Ban co con on khong?" voi 2 lua chon Co / Khong.
+          Đến giờ này, app sẽ gửi thông báo: "Bạn có còn ổn không?" với 2 lựa chọn Có / Không.
         </Text>
       </View>
 
       <View style={styles.card}>
-        <Text style={styles.label}>Che do mac dinh khi khong phan hoi</Text>
+        <Text style={styles.label}>Chế độ mặc định khi không phản hồi</Text>
         <Text style={styles.value}>
-          Sau 3 ngay khong phan hoi, he thong se mac dinh KHONG an toan va dat marker SOS bang vi tri cuoi.
+          Sau 3 ngày không phản hồi, hệ thống sẽ mặc định KHÔNG an toàn và đặt marker SOS bằng vị trí cuối.
         </Text>
       </View>
 
       {!isNotificationRuntimeSupported() && (
         <View style={styles.warningCard}>
           <Text style={styles.warningText}>
-            Ban dang chay Expo Go. Notification action Co/Khong tren Android SDK 53 khong ho tro day du.
+            Bạn đang chạy Expo Go. Thao tác thông báo Có/Không trên Android SDK 53 chưa hỗ trợ đầy đủ.
           </Text>
         </View>
       )}
 
       <TouchableOpacity style={[styles.saveBtn, isSaving && styles.disabledBtn]} onPress={onSave} disabled={isSaving}>
-        <Text style={styles.saveText}>{isSaving ? 'Dang luu...' : 'Luu Cai Dat Check-in'}</Text>
+        <Text style={styles.saveText}>{isSaving ? 'Đang lưu...' : 'Lưu cài đặt check-in'}</Text>
       </TouchableOpacity>
 
       <TouchableOpacity style={styles.testBtn} onPress={onSendTestNow}>
-        <Text style={styles.testText}>Gui Check-in Ngay (Test)</Text>
+        <Text style={styles.testText}>Gửi check-in ngay (test)</Text>
       </TouchableOpacity>
     </ScrollView>
   );
@@ -133,16 +133,20 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     padding: 15,
     borderRadius: 12,
-    marginBottom: 12
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   card: {
-    backgroundColor: 'white',
+    backgroundColor: COLORS.surface,
     padding: 15,
     borderRadius: 12,
-    marginBottom: 12
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: COLORS.border
   },
   label: { fontSize: 16, fontWeight: '600', color: COLORS.text, marginBottom: 8 },
   value: { fontSize: 15, color: COLORS.textLight, lineHeight: 22 },
@@ -157,12 +161,13 @@ const styles = StyleSheet.create({
   warningText: { color: '#92400e', fontSize: 13, lineHeight: 18 },
   input: {
     borderWidth: 1,
-    borderColor: '#d1d5db',
+    borderColor: COLORS.border,
     borderRadius: 10,
     paddingVertical: 10,
     paddingHorizontal: 12,
     fontSize: 15,
-    color: COLORS.text
+    color: COLORS.text,
+    backgroundColor: COLORS.inputBackground
   },
   hint: { marginTop: 8, fontSize: 13, color: COLORS.textLight, lineHeight: 18 },
   saveBtn: {
@@ -181,7 +186,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 12,
     alignItems: 'center',
-    backgroundColor: '#fff'
+    backgroundColor: COLORS.surfaceSoft
   },
   testText: { color: COLORS.accent, fontSize: 15, fontWeight: '700' }
 });
